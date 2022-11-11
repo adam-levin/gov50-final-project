@@ -7,6 +7,9 @@ output:
     self_contained: false
 ---
 
+```{r include = FALSE}
+library(tidyverse)
+```
 
 
 ## Project thoughts
@@ -23,5 +26,76 @@ How has this relationship changed over time?
 Is the relationship stronger in a market up-swing (bull market) as compared to a market-downswing (bear market)? 
 
 In this study, I seek to examine the relationship between the change in prices of the top crypto currency, Bitcoin (BTC) and one of the top U.S. stock market indices, the S&P 500. I hypothesize that the changes in price of BTC track very closely to the change in price of the S&P 500, and would allow us to create a fairly robust prediction model for how closely a change in one would track to a change in the other. I hypothesize such under the fundamental belief that cryptocurrencies have become considerably more mainstream and institutionalized over the years and investor behavior does not deviate significantly from a behavioral economics point of view between those trading cryptocurrencies and those trading on the stock market. I expect (hypothesis 1), that, overtime, the change in prices between the top cryptocurrency (specifically BTC) and top market indice (the S&P 500) have tracked closer together, given the liquidity pool and number of individuals and institutions trading these crypto currencies increased significantly from 2009-2022, offering stronger price stability and lower price volatility. Second (hypothesis 2), I expect that the relationship between price changes in a bear market and bull market between BTC and the S&P 500 is not significant (i.e. the change in prices would track similar, regardless of whether the market was defined as “bear” or “bull” at a given time). My sample is comprised  of BTC (daily change) pricing data along with the S&P 500 (daily change) pricing data from 2009 to 2022. The data is sourced from Investing.com which allows for csv downloads. My unit of analysis will vary depending on the specific question being answered in the study. When evaluating the change in price relationship and evaluating how much closer they have tracked overtime, my unit of analysis will be the daily price change data from every day for all the years from 2009 (when bitcoin was first founded) to 2022. For evaluating whether or not the change in prices track closer in a “bull” or “bear” market, if at all, I will first need to define a “bull” and “bear” market. I will use the commonly used definition from investor.gov to identify “bear” and “bull” markets, in which a “bull” market is defined as a “a rise of 20% or more in a broad market index over at least a two-month period,” and a “bear” market defined as the reverse, i.e. a “decline of 20% or more in a broad market index over at least a two-month period.” In this case, an explanatory variable of interest to the study is whether the market condition is “bear” or “bull” (this will be “coded” as =1 for a “bull” market, and =0 for a “bear” market). My outcome variable in this case is the difference (absolute) in the daily change in price for BTC and the S&P 500. For example, if the daily change in price between BTC and the S&P 500 was .22, it would mean the absolute difference in the change in price for BTC and the S&P 500 was .22, i.e. one combination for this absolute difference between the two would be the change in price for BTC was +.20, and the change in price for the S&P 500 was +.42, so the absolute difference = .22. If I observe, no to statistically insignificant change in how closely the daily change in prices for BTC and the S&P 500 track (the absolute difference) for when the market condition is defined as “bull” or “bear”, then my second hypothesis would prove correct, however, if I observe some to a statistically significant change in how closely the daily change in prices for BTC and the S&P 500 track (the absolute difference) for when the market condition is defined as “bull” or “bear”, then my second hypothesis would prove incorrect. By running a regression of the changes in prices for BTC and the S&P 500 on the market condition indicator variable, a value of zero, or very close to it, for the coefficient, for example, would provide evidence that my second hypothesis is correct. 
+
+
+
+
+
+
+
+# Merging
+
+```{r}
+bitcoin <- read_csv("Bitcoin.csv")
+names(bitcoin)[ncol(bitcoin)] <- "per_change"
+bitcoin$per_change <-
+  as.numeric(gsub("\\%", "", bitcoin$per_change))
+names(bitcoin)[2:ncol(bitcoin)] <- 
+  paste0("bitcoin_", names(bitcoin)[2:ncol(bitcoin)])
+
+bitcoin
+
+sp500 <- read_csv("S&P 500.csv")
+names(sp500)[ncol(sp500)] <- "per_change"
+sp500$per_change <-
+  as.numeric(gsub("\\%", "", sp500$per_change))
+names(sp500)[2:ncol(sp500)] <- 
+  paste0("sp500_", names(sp500)[2:ncol(sp500)])
+
+sp500
+
+indices <- left_join(bitcoin, sp500)
+
+indices
+```
+
+#Data Visualization
+
+```{r}
+#lirbary(lubridate)
+
+# We copy into a new dataframe
+indices2 <- indices
+
+# change Date from str to Date class
+indices2$Date <- as.Date(indices2$Date, format = "%m/%d/%y")
+
+# create start and end date and filter data frame to dates between period
+start_date <- as.Date("2022/10/1")
+end_date <- as.Date("2022/11/1")
+indices2 <- indices2[(indices2$Date >= start_date), ]
+indices2 <- indices2[(indices2$Date <= end_date), ]
+
+ggplot(data = indices2, mapping = aes(x = Date)) +
+geom_point(aes(y = sp500_per_change, col = "sp500_per_change"), position = "jitter") + geom_point(aes(y = bitcoin_per_change, col = "bitcoin_per_change"), position = "jitter") +
+    geom_smooth(aes(y = sp500_per_change, col = "sp500_per_change")) +  geom_smooth(aes(y = bitcoin_per_change, col = "bitcoin_per_change")) +
+    labs(title = "1 month Daily Percent change in Price for Bitcoin & S&P500",x = "Dates from 10/1/22 to 11/1/22", 
+         y = "Daily Percent change in Price") + scale_x_date(date_labels = "%b/%d")
+
+#google change x axis ticks ggplot
+#as.date - turn date into a date column 
+
+```
+
+```{r}
+
+# remove rows with NA, and then do cor
+
+cor(indices$bitcoin_per_change, indices$sp500_per_change, use="complete.obs")
+
+
+```
+
+
 
 
