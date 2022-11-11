@@ -87,6 +87,7 @@ geom_point(aes(y = sp500_per_change, col = "sp500_per_change"), position = "jitt
 
 ```
 
+#correlation 
 ```{r}
 
 # remove rows with NA, and then do cor
