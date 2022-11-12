@@ -82,12 +82,10 @@ geom_point(aes(y = sp500_per_change, col = "sp500_per_change"), position = "jitt
     labs(title = "1 month Daily Percent change in Price for Bitcoin & S&P500",x = "Dates from 10/1/22 to 11/1/22", 
          y = "Daily Percent change in Price") + scale_x_date(date_labels = "%b/%d")
 
-#google change x axis ticks ggplot
-#as.date - turn date into a date column 
-
 ```
 
 #correlation 
+
 ```{r}
 
 # remove rows with NA, and then do cor
