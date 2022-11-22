@@ -95,6 +95,24 @@ cor(indices$bitcoin_per_change, indices$sp500_per_change, use="complete.obs")
 
 ```
 
+#Regression 
 
+```{r}
+full_lm <- lm(bitcoin_per_change ~ sp500_per_change, data = indices)
+oct_lm<- lm(bitcoin_per_change ~ sp500_per_change, data = indices2)
+```
 
+```{r}
+plot(bitcoin_per_change ~ sp500_per_change, data = indices, pch = 16, main = "Bitcoin vs. S&P daily price change (2010-2022)", xlab = "Daily S&P price % change", ylab = "Daily Bitcoin price % change")
+abline(full_lm, col = "blue")
+summary(full_lm)
+```
 
+Our model on the entire dataset indicates that there exists a significant relationship between daily Bitcoin price percent change and daily S&P500 percent change. On average, for every 1% increase in S&P500's change per day, Bitcoin's price change per day increases by 0.56%. This suggests that Bitcoin and S&P500's daily prices move in tandem with each other. 
+
+```{r}
+plot(bitcoin_per_change ~ sp500_per_change, data = indices2, pch = 16, main = "Bitcoin vs. S&P daily price change (Oct 2022)", xlab = "Daily S&P price % change", ylab = "Daily Bitcoin price % change")
+abline(oct_lm, col = "blue")
+summary(oct_lm)
+```
+Our model on the October, 2022 data indicates that there exists a significant relationship between daily Bitcoin price percent change and daily S&P500 percent change. On average, for every 1% increase in S&P500's change per day, Bitcoin's price change per day increases by 0.70%, which is slightly higher (by .14%) than the average of the total dataset of .56%, referenced in the previous analysis. 
