@@ -964,7 +964,7 @@ regression, using the <code>sp_price_pct_change</code>,
 <code>b_open_price</code>, <code>sp_open_price</code>,
 <code>bear_bull</code>, and <code>log_b_vol_traded</code> variables as
 independent variables/predictors. Below, we run this regression and
-present a table of the results (seen above):</p>
+present a table of the results (seen below):</p>
 <pre class="r"><code>mr_model &lt;- lm(b_price_pct_change ~ sp_price_pct_change + b_open_price + 
                  sp_open_price + bear_bull + log_b_vol_traded, indices)
 

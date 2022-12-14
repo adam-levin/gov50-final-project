@@ -231,7 +231,7 @@ By inspection, there appears to be a positive relationship between `b_price_pct_
 
 # Results
 
-To investigate our research question, we will run a multiple linear regression, using the `sp_price_pct_change`, `b_open_price`, `sp_open_price`, `bear_bull`, and `log_b_vol_traded` variables as independent variables/predictors. Below, we run this regression and present a table of the results (seen above):
+To investigate our research question, we will run a multiple linear regression, using the `sp_price_pct_change`, `b_open_price`, `sp_open_price`, `bear_bull`, and `log_b_vol_traded` variables as independent variables/predictors. Below, we run this regression and present a table of the results (seen below):
 
 ```{r}
 mr_model <- lm(b_price_pct_change ~ sp_price_pct_change + b_open_price + 
