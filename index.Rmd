@@ -1,120 +1,259 @@
 ---
-title: "Gov 50 Final Project"
-author: "Adam Levin"
-description: "Crypto and Conventional Markets Pricing relationship"
-output:
-  distill::distill_article:
-    self_contained: false
+title: 'Bitcoin Price Changes: A Regression Analysis'
+author: 'Adam Levin'
+date: '13 December 2022'
+output: pdf_document
 ---
 
-```{r include = FALSE}
+# Introduction
+
+For the final project, I hope to investigate the relationship between daily percent changes in Bitcoin (BTC) price and daily percent changes in the S&P 500. I would like to evaluate whether changes in the S&P 500 price could be utilized as a predictor of changes in Bitcoin price. My intuition is that there is likely to be a positive relationship between these price changes. I think this may be the case because, in recent years, cryptocurrencies have come to be traded in large quantities at the global scale (as the S&P 500 has been for many years). So, I would expect that the macroeconomic factors that influence price increases/decreases in the S&P 500 may influence similar increases/decreases in the price of Bitcoin, and thus that these respective daily price changes may align.
+
+That said, I am cautious to predict that I will ultimately find a strong relationship between these price changes. After all, I have seen periods of time when Bitcoin has rapidly risen/fallen quite dramatically in comparison to the S&P 500, due to a number of factors. Nonetheless, I think this will be a fascinating relationship to explore and it will be interesting to see what other predictors of Bitcoin price change I am able to find in my analysis.
+
+# Processing of Data
+
+To begin, I process the data that I will utilize in my analysis. I have downloaded two '.csv' files that contain the (1) BTC and (2) S&P 500 pricing data over the last decade or so.
+
+I first read the two .csv files into data frames (with custome `colnames`) and merge them, then observe the head of and a summary of our merged data frame to evaluate the data we have at hand:
+
+```{r}
+# read in dfs
+bitcoin_df <- read.csv('Bitcoin.csv')
+sp_df <- read.csv('S&P 500.csv')
+
+# customize colnames
+base_colnames <- c('price', 'open_price', 'hi_price', 'lo_price', 
+                   'vol_traded','price_pct_change')
+colnames(bitcoin_df) <- c('date', paste('b_', base_colnames, sep=''))
+colnames(sp_df) <- c('date', paste('sp_', base_colnames, sep=''))
+
+df <- merge(bitcoin_df, sp_df) # merge
+head(df) # observe head
+summary(df) # observe summary
+```
+
+I first observe that the `sp_vol_traded` column contains all null values (whereas none of the other columns contain any nulls), so we will elect to drop this column from our data frame. Further, I observe that each column of the data frame is of class `character`. For our purposes, I would like to convert the `date` column to the `Date` class so we can easily sort our data. Further, I would like to convert the other columns to the `numeric` class since they each represent potential numbers of interest. As the base `as.numeric` function cannot account for the ',', 'K', 'M', 'B', and '%' characters in some areas, I write a custom implementation to convert these to the class `numeric` (to have non-null data, we also drop the 5 out of 3044 rows for which the `b_vol_traded` column has no recording, i.e. a value of '-'). I make these changes below and create a new summary of the data:
+
+```{r}
+df <- subset(df, select=-sp_vol_traded) # drop null `sp_vol_traded` column
+df$date <- as.Date(df$date, format='%m/%d/%y') # convert `date` column to `Date` class
+df <- df[df$b_vol_traded != '-',] # drop rows w/ null `b_vol_traded` values
+df$b_vol_traded <- as.numeric(
+  sub(
+    '\\.', '', sub(
+      'K', '0', sub(
+        'M', '0000', sub(
+          'B', '0000000', df$b_vol_traded
+        )
+      )
+    )
+  )
+) # convert `b_vol_traded` column to numeric
+df <- cbind(
+  df[, c('date', 'b_vol_traded')],
+  apply(
+    df[, setdiff(colnames(df), c('date', 'b_vol_traded'))],
+    2,
+    function(c) as.numeric(sub('[,%]', '', c))
+  )
+) # convert rest of columns to numeric
+df <- df[order(df$date),] # sort df by `date` in ascending order
+rownames(df) <- NULL # reset index column of df
+summary(df) # observe summary
+```
+
+Finally, let's add an indicator variable, `bear_bull`, that equals 1 during a Bull market (`date` <= '2020-02-19', and '2020-03-23' <= `date` <= '2022-01-03'), and 0 otherwise/during a Bear market (as per \url{https://www.yardeni.com/pub/sp500corrbeartables.pdf}). Note: here, we define a Bull market as a “a rise of 20% or more in a broad market index over at least a two-month period,” and a Bear market as the reverse:
+
+```{r}
+df$bear_bull <- 1*(
+  df$date <= '2020-02-19' | (('2020-03-23' <= df$date) & (df$date <= '2022-01-03'))
+) # construct `bear_bull` indicator column
+```
+
+Now that I have properly processed the data, let's discuss it!
+
+# Description of Data
+
+The main data frame with which I will be working has $n =$ `r nrow(df)` rows that correspond to the days between October 4th, 2010 and November 3rd, 2022 for which we had non-null data. In total, there are `r ncol(df)` columns (including the `date` column). For both BTC and the S&P 500, I have access to the opening price of the day (`b_open_price` and `sp_open_price`), the low price of the day (`b_lo_price` and `sp_lo_price`), the high price of the day (`b_hi_price` and `sp_hi_price`), the final price of the day (`b_price` and `sp_price`), and the percent change in price over the course of the day (`b_price_pct_change` and `sp_price_pct_change`). Further, for Bitcoin, I have access to the volume traded in the day (`b_vol_traded`).
+
+As mentioned above, the dependent variable I plan to use in my analysis is `b_price_pct_change` and the primary independent variable of interest will be `sp_price_pct_change`. Naturally, my investigation of this data will employ a longitudinal design since it considers data collected daily over a period of time.
+
+In addition to `sp_price_pct_change`, there are several other raw variables that could be interesting to include as independent variables in my analysis, as they too could have some underlying relationship with `b_price_pct_change`. It may be that Bitcoin price percent changes have some relationship with starting prices (of either Bitcoin or S&P 500), trading volume, and or whether the market is a Bear or a Bull. As such, I plan to include the `b_open_price`, `sp_open_price`, `b_vol_traded`, and `bear_bull` variables in a multiple regression analysis. Let's construct another data frame for our model, `indices`, containing these specific variables of interest:
+
+```{r}
+indices <- df[
+  ,
+  c(
+    'b_price_pct_change', 'sp_price_pct_change', 'date', 'b_open_price',
+    'sp_open_price', 'b_vol_traded', 'bear_bull'
+  )
+] # construct indices
+```
+
+# Preliminary Analysis of Data
+
+To begin, let's take a look at how the `b_open_price` and `sp_open_price` variables have changed over time:
+
+```{r message=F}
+# plot `b_price` and `sp_price` over time, side-by-side
+library(gridExtra)
 library(tidyverse)
+
+plot1 <- ggplot(data = indices, mapping = aes(x = date, y = b_open_price)) + 
+  geom_line() + labs(title = "BTC Price over Time", x = "Time", y = "Price") + 
+  theme_classic() + theme(plot.title = element_text(face = "bold", hjust = 0.5))
+
+plot2 <- ggplot(data = indices, mapping = aes(x = date, y = sp_open_price)) +
+  geom_line() + labs(title = "S&P Price over Time", x = "Time", y = "Price") + 
+  theme_classic() + theme(plot.title = element_text(face = "bold", hjust = 0.5))
+
+grid.arrange(plot1, plot2, ncol=2)
+  
 ```
 
-
-## Project thoughts
-
-I am interested in exploring data related to the changing pricing for the top crypto currencies and the general movements of the S&P 500/NASDAQ/Dow. The goal would be to get a better understanding of how correlated/inter-connected these markets are generally. Does the price (and price movements) of ETH and BTC match that of the S&P 500/NASDAQ/Dow? Does one influence the other? This relationship would be incredibly fascinating to explore and overtime I will hone in on a more specific relationship/question to target...maybe it's price and liquidity or just one versus the other. Nonetheless, I am super excited to explore this space! It could be interesting to also include the top NFT project price movements as well in exploring these markets complex and unique relationships!
-
-## Project Proposal 
-
-Do changes in prices of the top crypto currencies (BTC & ETH) track to changes in prices for the top market indices (the Dow Jones Industrial Average & The S&P 500)? 
-
-More specific research sub-questions:
-If so, how closely? 
-How has this relationship changed over time? 
-Is the relationship stronger in a market up-swing (bull market) as compared to a market-downswing (bear market)? 
-
-In this study, I seek to examine the relationship between the change in prices of the top crypto currency, Bitcoin (BTC) and one of the top U.S. stock market indices, the S&P 500. I hypothesize that the changes in price of BTC track very closely to the change in price of the S&P 500, and would allow us to create a fairly robust prediction model for how closely a change in one would track to a change in the other. I hypothesize such under the fundamental belief that cryptocurrencies have become considerably more mainstream and institutionalized over the years and investor behavior does not deviate significantly from a behavioral economics point of view between those trading cryptocurrencies and those trading on the stock market. I expect (hypothesis 1), that, overtime, the change in prices between the top cryptocurrency (specifically BTC) and top market indice (the S&P 500) have tracked closer together, given the liquidity pool and number of individuals and institutions trading these crypto currencies increased significantly from 2009-2022, offering stronger price stability and lower price volatility. Second (hypothesis 2), I expect that the relationship between price changes in a bear market and bull market between BTC and the S&P 500 is not significant (i.e. the change in prices would track similar, regardless of whether the market was defined as “bear” or “bull” at a given time). My sample is comprised  of BTC (daily change) pricing data along with the S&P 500 (daily change) pricing data from 2009 to 2022. The data is sourced from Investing.com which allows for csv downloads. My unit of analysis will vary depending on the specific question being answered in the study. When evaluating the change in price relationship and evaluating how much closer they have tracked overtime, my unit of analysis will be the daily price change data from every day for all the years from 2009 (when bitcoin was first founded) to 2022. For evaluating whether or not the change in prices track closer in a “bull” or “bear” market, if at all, I will first need to define a “bull” and “bear” market. I will use the commonly used definition from investor.gov to identify “bear” and “bull” markets, in which a “bull” market is defined as a “a rise of 20% or more in a broad market index over at least a two-month period,” and a “bear” market defined as the reverse, i.e. a “decline of 20% or more in a broad market index over at least a two-month period.” In this case, an explanatory variable of interest to the study is whether the market condition is “bear” or “bull” (this will be “coded” as =1 for a “bull” market, and =0 for a “bear” market). My outcome variable in this case is the difference (absolute) in the daily change in price for BTC and the S&P 500. For example, if the daily change in price between BTC and the S&P 500 was .22, it would mean the absolute difference in the change in price for BTC and the S&P 500 was .22, i.e. one combination for this absolute difference between the two would be the change in price for BTC was +.20, and the change in price for the S&P 500 was +.42, so the absolute difference = .22. If I observe, no to statistically insignificant change in how closely the daily change in prices for BTC and the S&P 500 track (the absolute difference) for when the market condition is defined as “bull” or “bear”, then my second hypothesis would prove correct, however, if I observe some to a statistically significant change in how closely the daily change in prices for BTC and the S&P 500 track (the absolute difference) for when the market condition is defined as “bull” or “bear”, then my second hypothesis would prove incorrect. By running a regression of the changes in prices for BTC and the S&P 500 on the market condition indicator variable, a value of zero, or very close to it, for the coefficient, for example, would provide evidence that my second hypothesis is correct. 
-
-
-
-
-
-
-
-# Merging
+I quickly observe that BTC prices were extremely low compared to their present value until roughly the start of 2018. As such, I believe it makes sense to use only data available starting in 2018 for my analysis. As stated above, my intuition is that BTC prices may track well with the S&P 500 in recent years since there has been a notable worldwide market for BTC, so by subsetting just 2018 data and beyond, I will be able to zero in on a potential trend during this timeline. Let's construct a new data frame aligning with these rows and again examine them side-by-side:
 
 ```{r}
-bitcoin <- read_csv("Bitcoin.csv")
-names(bitcoin)[ncol(bitcoin)] <- "per_change"
-bitcoin$per_change <-
-  as.numeric(gsub("\\%", "", bitcoin$per_change))
-names(bitcoin)[2:ncol(bitcoin)] <- 
-  paste0("bitcoin_", names(bitcoin)[2:ncol(bitcoin)])
+indices <- indices[indices$date >= '2018-01-01',] # subset `date` since 2018
+rownames(indices) <- NULL # reset index column of indices
 
-bitcoin
+# plot `b_price` and `sp_price` over time since 2018, side-by-side
+plot1 <- ggplot(data = indices, mapping = aes(x = date, y = b_open_price)) + 
+  geom_line() + labs(title = "BTC Price over Time", x = "Time", y = "Price") + 
+  theme_classic() + theme(plot.title = element_text(face = "bold", hjust = 0.5))
+plot2 <- ggplot(data = indices, mapping = aes(x = date, y = sp_open_price)) + 
+  geom_line() + labs(title = "S&P Price over Time", x = "Time", y = "Price") + 
+  theme_classic() + theme(plot.title = element_text(face = "bold", hjust = 0.5))
 
-sp500 <- read_csv("S&P 500.csv")
-names(sp500)[ncol(sp500)] <- "per_change"
-sp500$per_change <-
-  as.numeric(gsub("\\%", "", sp500$per_change))
-names(sp500)[2:ncol(sp500)] <- 
-  paste0("sp500_", names(sp500)[2:ncol(sp500)])
-
-sp500
-
-indices <- left_join(bitcoin, sp500)
-
-indices
+grid.arrange(plot1, plot2, ncol=2)
 ```
 
-#Data Visualization
+Our new data set has $n =$ `r nrow(indices)` rows. We observe that BTC price remains fairly level until late 2020, after which it takes a steep climb into early 2021, followed by a significant drop and climb toward the start of 2022, after which it has seen a notable decline. Meanwhile, the S&P steadily climbed until a sharp drop in early 2020 (around the time COVID hit), followed by a steady climb until late 2021 and a fairly steady decline throughout 2022. In general, it appears that these trends most closely track since mid-2021, so it could be interesting to later compare our since-2018 analysis to our since mid-2021 analysis to see if the respective price changes have followed a particularly strong relationship in the last 18 months or so.
+
+Having subsetted our data to 2018 and beyond, let's construct a histogram of `b_price_pct_change` to examine the distribution of our outcome/dependent variable:
+
+```{r message=F}
+Histogram <- indices[indices$date >= '2018-01-01',] |>
+ggplot(mapping = aes(x = b_price_pct_change)) +
+geom_histogram(mapping = aes(y = ..density..), color = "black", fill = "light gray") +
+  theme_classic() + labs(title = "Hist of BTC % Price Changes", 
+                         x = "b_price_pct_change", y = "Density") + theme_classic() + 
+  theme(plot.title = element_text(face = "bold", hjust = 0.5))
+
+Histogram
+```
+
+We see that the daily % price changes in BTC take a unimodal, roughly Bell-shaped curve and thus follow an approximately Normal distribution centered around 0%, with the great majority of values falling between -10% and 10%. Notably, there exist outliers, particularly one extreme outlier which falls near -40%, whereas no other daily change falls below -20%.
+
+For further context, let's also take a look at how `b_price_pct_change` (our dependent variable) and  `sp_price_pct_change` (our primary independent variable) have tracked over this time period:
 
 ```{r}
-#lirbary(lubridate)
-
-# We copy into a new dataframe
-indices2 <- indices
-
-# change Date from str to Date class
-indices2$Date <- as.Date(indices2$Date, format = "%m/%d/%y")
-
-# create start and end date and filter data frame to dates between period
-start_date <- as.Date("2022/10/1")
-end_date <- as.Date("2022/11/1")
-indices2 <- indices2[(indices2$Date >= start_date), ]
-indices2 <- indices2[(indices2$Date <= end_date), ]
-
-ggplot(data = indices2, mapping = aes(x = Date)) +
-geom_point(aes(y = sp500_per_change, col = "sp500_per_change"), position = "jitter") + geom_point(aes(y = bitcoin_per_change, col = "bitcoin_per_change"), position = "jitter") +
-    geom_smooth(aes(y = sp500_per_change, col = "sp500_per_change")) +  geom_smooth(aes(y = bitcoin_per_change, col = "bitcoin_per_change")) +
-    labs(title = "1 month Daily Percent change in Price for Bitcoin & S&P500",x = "Dates from 10/1/22 to 11/1/22", 
-         y = "Daily Percent change in Price") + scale_x_date(date_labels = "%b/%d")
-
+# plot BTC % daily price changes over time and overlay S&P 500 % daily price changes 
+ggplot(data = indices, mapping = aes(x = date)) + geom_line(aes(y = b_price_pct_change,
+                                                                col = "BTC")) +
+  geom_line(aes(y = sp_price_pct_change, col = "S&P500")) + 
+  labs(title = "Daily % Price Changes Over Time", x = "Time", y = "Price") + 
+  theme_classic() + theme(plot.title = element_text(face = "bold", hjust = 0.5))
 ```
 
-#correlation 
+Day-by-day, the percent price changes in both BTC and the S&P 500 are rather stochastic/jumpy. Generally, it appears that BTC experiences more dramatic % changes in price day by day, as evidenced by the fact that the red line tracking its changes typically jumps to farther distances from the 0% change line in either direction. That said, the S&P did appear to experience notable day-by-day price changes in early 2020 around the time COVID hit. By inspection, it appears that jumps and falls in BTC prices day-by-day at least somewhat align with jumps and falls in S&P prices day-by-day. That said, it is not possible to deduce the strength of this potential relationship from this plot alone.
+
+Finally, let's take a look at how the `b_vol_traded` changes over time to get a further glance into this variable of interest:
 
 ```{r}
-
-# remove rows with NA, and then do cor
-
-cor(indices$bitcoin_per_change, indices$sp500_per_change, use="complete.obs")
-
-
+# plot `b_vol_traded` over time
+ggplot(data = indices, mapping = aes(x = date, y = b_vol_traded)) + geom_line() +
+  labs(title = "BTC Volume Traded Day-by-Day", x = "Time", y = "Volume") +
+  theme_classic() + theme(plot.title = element_text(face = "bold", hjust = 0.5))
 ```
 
-#Regression 1 (Full Data Set)
+Seeing how there are notably extreme volumes traded in early 2022 that far trump the volumes traded during any other span of time, let's replace this column with a log transformation and re-evaluate:
 
 ```{r}
-full_lm <- lm(bitcoin_per_change ~ sp500_per_change, data = indices)
-oct_lm<- lm(bitcoin_per_change ~ sp500_per_change, data = indices2)
+indices$log_b_vol_traded <- log(indices$b_vol_traded) # add log transformed column
+indices <- subset(indices, select=-b_vol_traded) # drop `b_vol_traded` column
+
+# plot `log_b_vol_traded` over time
+ggplot(data = indices, mapping = aes(x = date, y = log_b_vol_traded)) + geom_line() + 
+  labs(title = "Log BTC Volume Traded Day-by-Day", x = "Time", y = "Log Volume") + 
+  theme_classic() + theme(plot.title = element_text(face = "bold", hjust = 0.5))
 ```
+
+On the log-scale, we see a general trend of increase in volume through mid-2020 (including a few sharp jumps), a notable drop in late 2020, followed by relative consistency in log-volume thereafter (barring a notable drop/recovery in mid-2021 and a sharp increase/ensuing drop in early 2022).
+
+Now that we have considered each of the variables with respect to time, let's examine scatterplots of our outcome variable plotted against each of our independent variables to take an initial glance at their respective relationships (along with fit lines based on their respective single variable linear regressions):
+
+```{r message=F}
+
+
+# plot `b_price_pct_change` versus each independent variable 
+plot1 <- ggplot(data = indices, mapping = aes(x = sp_price_pct_change,
+                                              y = b_price_pct_change)) +
+  geom_point(alpha = .1) + labs(x = "sp_price_pct_change",
+                                y = "b_price_pct_change") +
+  geom_smooth(method = lm, alpha = 0, size = .5) + theme_classic()
+
+plot2 <- ggplot(data = indices, mapping = aes(x = b_open_price, 
+                                              y = b_price_pct_change)) + 
+  geom_point(alpha = .1) + labs(x = "b_open_price", 
+                                y = "b_price_pct_change") +
+  geom_smooth(method = lm, alpha = 0, size = .5) + theme_classic() 
+
+plot3 <- ggplot(data = indices, mapping = aes(x = sp_open_price, 
+                                              y = b_price_pct_change)) + 
+  geom_point(alpha = .1) + labs(x = "sp_open_price",
+                                y = "b_price_pct_change") + 
+  geom_smooth(method = lm, alpha = 0, size = .5) + theme_classic() 
+
+plot4 <- ggplot(data = indices, mapping = aes(x = bear_bull, 
+                                              y = b_price_pct_change)) + 
+  geom_point(alpha = .1) + labs(x = "bear_bull",
+                                y = "b_price_pct_change") + 
+  geom_smooth(method = lm, alpha = 0, size = .5) + theme_classic() 
+
+plot5 <- ggplot(data = indices, mapping = aes(x = log_b_vol_traded,
+                                              y = b_price_pct_change)) + 
+  geom_point(alpha = .1) + labs(x = "log_b_vol_traded", 
+                                y = "b_price_pct_change") + 
+  geom_smooth(method = lm, alpha = 0, size = .5) + theme_classic()
+
+
+grid.arrange(plot1, plot2, plot3, plot4, plot5, ncol = 3, nrow = 2)
+```
+
+By inspection, there appears to be a positive relationship between `b_price_pct_change` and `sp_price_pct_change`—our main independent variable of interest—as higher values of `b_price_pct_change` tend to coincide with higher values of `sp_price_pct_change`. It does not appear that `b_price_pct_change` shares much of a notable relationship with any of the other four independent variables of interest. It will be interesting to see whether this relationship between `b_price_pct_change` and `sp_price_pct_change` proves to be statistically significant in our next section.
+
+# Results
+
+To investigate our research question, we will run a multiple linear regression, using the `sp_price_pct_change`, `b_open_price`, `sp_open_price`, `bear_bull`, and `log_b_vol_traded` variables as independent variables/predictors. Below, we run this regression and present a table of the results (seen above):
 
 ```{r}
-plot(bitcoin_per_change ~ sp500_per_change, data = indices, pch = 16, main = "Bitcoin vs. S&P daily price change (2010-2022)", xlab = "Daily S&P price % change", ylab = "Daily Bitcoin price % change")
-abline(full_lm, col = "blue")
-summary(full_lm)
+mr_model <- lm(b_price_pct_change ~ sp_price_pct_change + b_open_price + 
+                 sp_open_price + bear_bull + log_b_vol_traded, indices)
+
+sp_price_pct_change_CI <- confint(mr_model, level = .95)['sp_price_pct_change',]
+
+modelsummary::modelsummary(mr_model,
+statistic = c("s.e. = {std.error}",
+"p = {p.value}"),
+gof_map = c("nobs", "r.squared", "adj.r.squared"))
 ```
 
-Our model on the entire dataset indicates that there exists a significant relationship between daily Bitcoin price percent change and daily S&P500 percent change. On average, for every 1% increase in S&P500's change per day, Bitcoin's price change per day increases by 0.56%. This suggests that Bitcoin and S&P500's daily prices move in tandem with each other. 
+Keeping in mind that our outcome variable, `b_price_pct_change`, ranges from approximately -40% to 20%, whereas our primary independent variable of interest, `sp_price_pct_change`, ranges from approximately -20% to 10%, the model suggests that on average, a one unit increase in the daily S&P 500 % price change coincides with a 0.888 unit increase in the daily BTC % price change, when holding the other variables (`b_open_price`, `sp_open_price`, `bear_bull`, and `log_b_vol_traded`) constant. This coefficient for `sp_price_pct_change` (roughly 0.888) is statistically significant at the 0.01 level because the p-value is less than 0.001. However, I do not believe that this coefficient represents a causal effect. While it does suggest that there is a correlation between these two variables, as discussed above, the S&P and BTC are each traded throughout the day and their daily price changes likely result from a number of macroeconomic factors for which our model does not account. So, while it is interesting to have established a statistically significant relationship between these variables, we do not have sufficient reason to deduce that changes in S&P price cause changes in BTC price.
 
-#Regression 2 (October 2022 Data Set)
+Based on the standard error of our `sp_price_pct_change` coefficient, we construct a 95% confidence interval for the `sp_price_pct_change` coefficient of [`r sp_price_pct_change_CI`]. This means that, assuming that the sampling distribution of BTC % price changes is normally distributed (which seems to be a reasonable assumption based on the interpretation of our histogram above), we are 95% confident that a one unit increase in the S&P 500 % price change coincides with a `r sp_price_pct_change_CI[1]` to a `r sp_price_pct_change_CI[2]` unit increase in the % price change of Bitcoin (when holding the other independent variables in our model constant), which cannot be attributed to "random chance."
 
-```{r}
-plot(bitcoin_per_change ~ sp500_per_change, data = indices2, pch = 16, main = "Bitcoin vs. S&P daily price change (Oct 2022)", xlab = "Daily S&P price % change", ylab = "Daily Bitcoin price % change")
-abline(oct_lm, col = "blue")
-summary(oct_lm)
-```
-Our model on the October, 2022 data indicates that there exists a significant relationship between daily Bitcoin price percent change and daily S&P500 percent change. On average, for every 1% increase in S&P500's change per day, Bitcoin's price change per day increases by 0.70%, which is slightly higher (by .14%) than the average of the total dataset of .56%, referenced in the previous analysis. 
+Notably, none of the coefficients for any of the other variables are statistically significant at the 0.01 or 0.05 level since each of their respective p-values came out greater than 0.05. Further, with an R-squared value of 0.087, we have that on average, the multiple regression model accounts for roughly 8.7% of the variation in the outcome `b_price_pct_change` variable. It's important to note that this is a rather low R-squared value, which suggests that the model does not have a strong goodness-of-fit and would likely struggle to produce precise predictions of the outcome `b_price_pct_change`.
+
+The intercept of -2.57 suggests that on average, a day with values of 0 for each of the predictors (note that a 0 of `log_b_vol_traded` is a 1 of `b_vol_traded` due to the transformation) would have a BTC daily change in price of -2.57%. This is not a meaningful quantity to interpret since several of these predictors never have values close to 0 in our data (for instance, the minimum value of `b_open_price` in our data is `r min(indices$b_open_price)`).
+
+[Note that we have already presented a scatterplot of the outcome and the main independent variable in the previous section above.]
+
+# Conclusion
+
+In this study, we aimed to examine the relationship between daily changes in the S&P 500 price and corresponding daily changes in the price of BTC. In our primary analysis, we performed a multiple linear regression analysis with our outcome variable being the daily percent changes in BTC price, and our independent variables including the daily percent changes in the S&P 500 price, the daily opening prices of both the S&P and BTC, an indicator of whether the market was defined as Bear or Bull for the day (as given in the source mentioned above), and the log of the daily volume traded of BTC. Ultimately, we only found a statistically significant coefficient for the % change in S&P price variable: we found that, when holding the other variables constant, a one unit increase in the daily S&P % price change coincided with 0.888 unit increase in the daily BTC % price change, on average (with a 95% confidence interval ranging from a `r sp_price_pct_change_CI[1]` to a `r sp_price_pct_change_CI[2]` unit increase in daily BTC % price change).
+
+One limitation of our study is that our multiple regression analysis produced a rather low R-squared value of 0.087, likely suggesting that our model would struggle to produce precise predictions of the outcome `b_price_pct_change`. Another limitation is that we restricted our model to a linear regression, when there could potentially exist nonlinear relationships between some of our independent variables and the outcome. Another major limitation of our study is that we only considered five rather basic variables as predictors in our model (each of which we derived from raw S&P 500 and BTC daily pricing data). Various other factors beyond the data we considered could influence daily changes in BTC price, such as changes in interest rates, changes in exchange rates, changes in crypto or monetary exchanges that hold concentrated amounts of BTC (and downfalls of those exchanges), and integration of BTC into payment platforms and institutional financial market makers (such as Visa/Citadel), for instance.
+
+To improve the study in the future, it would be interesting to attempt to account for some of these limitations. For instance, it could be enticing to move beyond linear regression, and perhaps utilize higher-level statistical methods that could account for potential nonlinear relationships in the data. It could also be useful to see what data we could attain regarding several of the macroeconomic factors above that may affect changes in Bitcoin price, and incorporate that data into our analysis. Finally, it could be interesting to see if previous changes in the S&P 500 could be used to predict changes in BTC price. Our current model uses the same-day % changes in the S&P 500 as a predictor of the changes in BTC price, but it might be interesting to incorporate some sort of moving averages as predictors (such as the average % changes in both BTC and the S&P 500 over the previous 10 days, for instance), to see if recent previous changes in these variables might have statistically significant effects on the daily % changes in BTC price.
