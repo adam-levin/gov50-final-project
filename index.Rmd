@@ -7,6 +7,9 @@ output:
     self_contained: false
     ---
 
+# Bitcoin Price Changes: A Regression Analysis
+
+
 # Introduction
 
 For the final project, I hope to investigate the relationship between daily percent changes in Bitcoin (BTC) price and daily percent changes in the S&P 500. I would like to evaluate whether changes in the S&P 500 price could be utilized as a predictor of changes in Bitcoin price. My intuition is that there is likely to be a positive relationship between these price changes. I think this may be the case because, in recent years, cryptocurrencies have come to be traded in large quantities at the global scale (as the S&P 500 has been for many years). So, I would expect that the macroeconomic factors that influence price increases/decreases in the S&P 500 may influence similar increases/decreases in the price of Bitcoin, and thus that these respective daily price changes may align.
