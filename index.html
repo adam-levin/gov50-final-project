@@ -741,10 +741,10 @@ summary(df) # observe summary</code></pre>
 <p>Finally, let’s add an indicator variable, <code>bear_bull</code>,
 that equals 1 during a Bull market (<code>date</code> &lt;=
 ‘2020-02-19’, and ‘2020-03-23’ &lt;= <code>date</code> &lt;=
-‘2022-01-03’), and 0 otherwise/during a Bear market (as per ). Note:
-here, we define a Bull market as a “a rise of 20% or more in a broad
-market index over at least a two-month period,” and a Bear market as the
-reverse:</p>
+‘2022-01-03’), and 0 otherwise/during a Bear market (as per <a href="https://www.yardeni.com/pub/sp500corrbeartables.pdf" class="uri">https://www.yardeni.com/pub/sp500corrbeartables.pdf</a>).
+Note: here, we define a Bull market as a “a rise of 20% or more in a
+broad market index over at least a two-month period,” and a Bear market
+as the reverse:</p>
 <pre class="r"><code>df$bear_bull &lt;- 1*(
   df$date &lt;= &#39;2020-02-19&#39; | ((&#39;2020-03-23&#39; &lt;= df$date) &amp; (df$date &lt;= &#39;2022-01-03&#39;))
 ) # construct `bear_bull` indicator column</code></pre>

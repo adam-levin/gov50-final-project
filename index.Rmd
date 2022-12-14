@@ -68,7 +68,7 @@ rownames(df) <- NULL # reset index column of df
 summary(df) # observe summary
 ```
 
-Finally, let's add an indicator variable, `bear_bull`, that equals 1 during a Bull market (`date` <= '2020-02-19', and '2020-03-23' <= `date` <= '2022-01-03'), and 0 otherwise/during a Bear market (as per \url{https://www.yardeni.com/pub/sp500corrbeartables.pdf}). Note: here, we define a Bull market as a “a rise of 20% or more in a broad market index over at least a two-month period,” and a Bear market as the reverse:
+Finally, let's add an indicator variable, `bear_bull`, that equals 1 during a Bull market (`date` <= '2020-02-19', and '2020-03-23' <= `date` <= '2022-01-03'), and 0 otherwise/during a Bear market (as per https://www.yardeni.com/pub/sp500corrbeartables.pdf). Note: here, we define a Bull market as a “a rise of 20% or more in a broad market index over at least a two-month period,” and a Bear market as the reverse:
 
 ```{r}
 df$bear_bull <- 1*(
