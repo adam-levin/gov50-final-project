@@ -1144,9 +1144,9 @@ R2 Adj.
 <code>b_price_pct_change</code>, ranges from approximately -40% to 20%,
 whereas our primary independent variable of interest,
 <code>sp_price_pct_change</code>, ranges from approximately -20% to 10%,
-the model suggests that on average, a one unit increase in the daily
-S&amp;P 500 % price change coincides with a 0.888 unit increase in the
-daily BTC % price change, when holding the other variables
+the model suggests that on average, a one percentage point increase in
+the daily S&amp;P 500 price coincides with a 0.888 percentage point
+increase in the daily BTC price, when holding the other variables
 (<code>b_open_price</code>, <code>sp_open_price</code>,
 <code>bear_bull</code>, and <code>log_b_vol_traded</code>) constant.
 This coefficient for <code>sp_price_pct_change</code> (roughly 0.888) is
@@ -1166,10 +1166,11 @@ coefficient, we construct a 95% confidence interval for the
 This means that, assuming that the sampling distribution of BTC % price
 changes is normally distributed (which seems to be a reasonable
 assumption based on the interpretation of our histogram above), we are
-95% confident that a one unit increase in the S&amp;P 500 % price change
-coincides with a 0.7201743 to a 1.0554715 unit increase in the % price
-change of Bitcoin (when holding the other independent variables in our
-model constant), which cannot be attributed to “random chance.”</p>
+95% confident that a one percentage point increase in the S&amp;P 500
+price coincides with a 0.7201743 to a 1.0554715 percentage point
+increase in the price of Bitcoin (when holding the other independent
+variables in our model constant), which cannot be attributed to “random
+chance.”</p>
 <p>Notably, none of the coefficients for any of the other variables are
 statistically significant at the 0.01 or 0.05 level since each of their
 respective p-values came out greater than 0.05. Further, with an
@@ -1183,10 +1184,11 @@ produce precise predictions of the outcome
 <p>The intercept of -2.57 suggests that on average, a day with values of
 0 for each of the predictors (note that a 0 of
 <code>log_b_vol_traded</code> is a 1 of <code>b_vol_traded</code> due to
-the transformation) would have a BTC daily change in price of -2.57%.
-This is not a meaningful quantity to interpret since several of these
-predictors never have values close to 0 in our data (for instance, the
-minimum value of <code>b_open_price</code> in our data is 3248.3).</p>
+the transformation) would have a BTC daily change in price of -2.57
+percentage points. This is not a meaningful quantity to interpret since
+several of these predictors never have values close to 0 in our data
+(for instance, the minimum value of <code>b_open_price</code> in our
+data is 3248.3).</p>
 <p>[Note that we have already presented a scatterplot of the outcome and
 the main independent variable in the previous section above.]</p>
 </div>
@@ -1203,10 +1205,10 @@ as Bear or Bull for the day (as given in the source mentioned above),
 and the log of the daily volume traded of BTC. Ultimately, we only found
 a statistically significant coefficient for the % change in S&amp;P
 price variable: we found that, when holding the other variables
-constant, a one unit increase in the daily S&amp;P % price change
-coincided with 0.888 unit increase in the daily BTC % price change, on
-average (with a 95% confidence interval ranging from a 0.7201743 to a
-1.0554715 unit increase in daily BTC % price change).</p>
+constant, a one percentage point increase in the daily S&amp;P 500 price
+coincided with 0.888 percentage point increase in the daily BTC price,
+on average (with a 95% confidence interval ranging from a 0.7201743 to a
+1.0554715 percentage point increase in daily BTC price).</p>
 <p>One limitation of our study is that our multiple regression analysis
 produced a rather low R-squared value of 0.087, likely suggesting that
 our model would struggle to produce precise predictions of the outcome
@@ -1233,7 +1235,7 @@ above that may affect changes in Bitcoin price, and incorporate that
 data into our analysis. Finally, it could be interesting to see if
 previous changes in the S&amp;P 500 could be used to predict changes in
 BTC price. Our current model uses the same-day % changes in the S&amp;P
-500 as a predictor of the changes in BTC price, but it might be
+500 as a predictor of the daily % changes in BTC price, but it might be
 interesting to incorporate some sort of moving averages as predictors
 (such as the average % changes in both BTC and the S&amp;P 500 over the
 previous 10 days, for instance), to see if recent previous changes in
