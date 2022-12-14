@@ -5,6 +5,8 @@ date: "13 December 2022"
 output:
   html_document:
     df_print: paged
+  distill::distill_article:
+    self_contained: no
 ---
 
 # Introduction
