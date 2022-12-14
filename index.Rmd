@@ -2,8 +2,10 @@
 title: 'Bitcoin Price Changes: A Regression Analysis'
 author: "Adam Levin"
 date: "13 December 2022"
-output: pdf_document
----
+output:
+  distill::distill_article:
+    self_contained: false
+    ---
 
 # Introduction
 
