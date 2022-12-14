@@ -79,7 +79,7 @@ The main data frame with which I will be working has $n =$ `r nrow(df)` rows tha
 
 As mentioned above, the dependent variable I plan to use in my analysis is `b_price_pct_change` and the primary independent variable of interest will be `sp_price_pct_change`. Naturally, my investigation of this data will employ a longitudinal design since it considers data collected daily over a period of time.
 
-In addition to `sp_price_pct_change`, there are several other raw variables that could be interesting to include as independent variables in my analysis, as they too could have some underlying relationship with `b_price_pct_change`. It may be that Bitcoin price percent changes have some relationship with starting prices (of either Bitcoin or S&P 500), trading volume, and or whether the market is a Bear or a Bull. As such, I plan to include the `b_open_price`, `sp_open_price`, `b_vol_traded`, and `bear_bull` variables in a multiple regression analysis. Let's construct another data frame for our model, `indices`, containing these specific variables of interest:
+In addition to `sp_price_pct_change`, there are several other raw variables that could be interesting to include as independent variables in my analysis, as they too could have some underlying relationship with `b_price_pct_change`. It may be that Bitcoin daily price percent changes have some relationship with starting prices (of either Bitcoin or S&P 500), trading volume, and or whether the market is a Bear or a Bull. As such, I plan to include the `b_open_price`, `sp_open_price`, `b_vol_traded`, and `bear_bull` variables in a multiple regression analysis. Let's construct another data frame for our model, `indices`, containing these specific variables of interest:
 
 ```{r}
 indices <- df[
